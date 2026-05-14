@@ -1,0 +1,14 @@
+const fs = require('fs');
+let code = fs.readFileSync('src/App.tsx', 'utf8');
+code = code.replace(/localStorage\.setItem\('surebite__v9', JSON\.stringify\(updatedProfile\)\);/g, `localStorage.setItem('surebite_profile_v9', JSON.stringify(updatedProfile));`);
+code = code.replace(/localStorage\.setItem\('surebite__v9', JSON\.stringify\(profile\)\);/g, `localStorage.setItem('surebite_profile_v9', JSON.stringify(profile));`);
+code = code.replace(/const savedProfile = localStorage\.getItem\('surebite__v9'\);/g, `const savedProfile = localStorage.getItem('surebite_profile_v9');`);
+code = code.replace(/const savedHistory = localStorage\.getItem\('surebite__v9'\);/g, `const savedHistory = localStorage.getItem('surebite_history_v9');`);
+code = code.replace(/const savedChat = localStorage\.getItem\('surebite__v9'\);/g, `const savedChat = localStorage.getItem('surebite_chat_v9');`);
+code = code.replace(/localStorage\.removeItem\('surebite__v9'\);/g, `localStorage.removeItem('surebite_chat_v9');`);
+code = code.replace(/localStorage\.setItem\('surebite__v9', JSON\.stringify\(newHistory\)\);/g, `localStorage.setItem('surebite_history_v9', JSON.stringify(newHistory));`);
+code = code.replace(/localStorage\.setItem\('surebite__v9', JSON\.stringify\(newChat\)\);/g, `localStorage.setItem('surebite_chat_v9', JSON.stringify(newChat));`);
+code = code.replace(/localStorage\.setItem\('surebite__v9', JSON\.stringify\(newProfile\)\);/g, `localStorage.setItem('surebite_profile_v9', JSON.stringify(newProfile));`);
+code = code.replace(/localStorage\.setItem\('surebite__v9', JSON\.stringify\(\{ \.\.\.profile, ingredientOverrides: newOverrides \}\)\);/g, `localStorage.setItem('surebite_profile_v9', JSON.stringify({ ...profile, ingredientOverrides: newOverrides }));`);
+code = code.replace(/surebite_chat_time_v8/g, 'surebite_chat_time_v9');
+fs.writeFileSync('src/App.tsx', code);

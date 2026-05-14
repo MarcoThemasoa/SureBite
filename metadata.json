@@ -1,0 +1,6 @@
+{
+  "name": "SureBite",
+  "description": "Proactive food safety scanner utilizing computer vision and AI to detect hidden allergens and correlate ingredients with dietary sensitivities.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}
