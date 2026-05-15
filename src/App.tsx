@@ -95,6 +95,9 @@ export default function App() {
   const [dangerZoneFilter, setDangerZoneFilter] = useState<'all' | 'red' | 'yellow' | 'blue'>('all');
   const [ingredientsPage, setIngredientsPage] = useState(1);
   const [dangerZonePage, setDangerZonePage] = useState(1);
+  const [authConfirmPassword, setAuthConfirmPassword] = useState('');
+  const [isPasswordResetFlow, setIsPasswordResetFlow] = useState(false);
+
 
   const BROAD_CATEGORIES: Record<string, string[]> = {
     'All': [],
@@ -171,7 +174,14 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Catch the password reset redirect!
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordResetFlow(true);
+        setView('settings');
+        setShowChangePasswordConfirm(true);
+      }
+      
       setUser(session?.user ?? null);
       if (session?.user) {
         loadUserData(session.user.id);
@@ -346,6 +356,11 @@ export default function App() {
     }
   };
 
+  const isScanCompletelySafe = (results: any[]) => {
+    if (results.length === 0) return false;
+    return results.every(r => (profile.ingredientOverrides[r.standard_name] || r.status) === 'green');
+  };
+  
   const handleManualSearch = async () => {
     if (!manualInput.trim()) return;
     setIsProcessing(true);
@@ -360,7 +375,8 @@ export default function App() {
         id: crypto.randomUUID(),
         timestamp: new Date(),
         results: analysis.results,
-        foodName: (analysis.results.length > 1 && analysis.foodName) ? analysis.foodName : undefined
+        foodName: (analysis.results.length > 1 && analysis.foodName) ? analysis.foodName : undefined,
+        mood: isScanCompletelySafe(analysis.results) ? 'good' : undefined
       };
       
       handleAutoSaveSafePlate(analysis, manualInput);
@@ -443,7 +459,8 @@ export default function App() {
             timestamp: new Date(),
             results: analysis.results,
             foodName: (analysis.results.length > 1 && analysis.foodName) ? analysis.foodName : undefined,
-            imageSrc
+            imageSrc,
+            mood: isScanCompletelySafe(analysis.results) ? 'good' : undefined
           };
           
           handleAutoSaveSafePlate(analysis, analysis.foodName || "Scan " + new Date().toLocaleTimeString());
@@ -510,6 +527,15 @@ export default function App() {
              </button>
            </div>
         </div>
+        
+        {authMode === 'register' && (
+          <div className="mb-8">
+             <label className="block text-[10px] font-bold uppercase tracking-widest mb-2 opacity-50">Confirm Password</label>
+             <div className="relative">
+               <input type={showPassword ? "text" : "password"} value={authConfirmPassword} onChange={e => setAuthConfirmPassword(e.target.value)} className="w-full border-b border-[#1A1A1A] bg-transparent pb-2 pr-8 text-sm focus:outline-none focus:border-[#FF5F1F]" />
+             </div>
+          </div>
+        )}
         <button 
           onClick={async () => {
             if (!checkAuthLimit()) {
@@ -537,6 +563,12 @@ export default function App() {
 
             if (!isValidPassword(authPassword)) {
               setErrorObj("Password must be at least 12 characters and contain a special character.");
+              setIsProcessing(false);
+              return;
+            }
+
+            if (authMode === 'register' && authPassword !== authConfirmPassword) {
+              setErrorObj("Passwords do not match.");
               setIsProcessing(false);
               return;
             }
@@ -574,6 +606,10 @@ export default function App() {
                 onClick={() => {
                   setResetEmailSent(false);
                   setAuthMode('forgot_password');
+                  setShowForgotPassword(true);
+                  setAuthEmail('');
+                  setAuthPassword('');
+                  setErrorObj(null);
                 }}
                 className="mt-2 text-[10px] uppercase tracking-widest font-bold underline"
               >
@@ -584,7 +620,13 @@ export default function App() {
         <p className="text-xs text-center">
           {authMode === 'login' ? 'Need an account?' : 'Already have an account?'}
           <button 
-            onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+            onClick={() => {
+              setAuthMode(authMode === 'login' ? 'register' : 'login');
+              setAuthEmail('');
+              setAuthPassword('');
+              setAuthConfirmPassword('');
+              setErrorObj(null);
+            }}
             className="ml-2 font-bold underline decoration-[#FF5F1F] underline-offset-4"
           >
             {authMode === 'login' ? 'Sign up' : 'Log in'}
@@ -2157,24 +2199,26 @@ export default function App() {
               <p className="text-sm opacity-80 mb-4 font-mono text-xs text-[#1A1A1A]">Update your password. You need your current password to proceed.</p>
               
               <div className="space-y-3 mb-6">
-                 <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Old Password</label>
-                    <div className="relative">
-                       <input 
-                         type={showChangePasswordOld ? "text" : "password"} 
-                         value={changePasswordOld}
-                         onChange={(e) => setChangePasswordOld(e.target.value)}
-                         className="w-full bg-white border border-[#1A1A1A] p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#FF5F1F]"
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => setShowChangePasswordOld(!showChangePasswordOld)}
-                        className="absolute right-3 top-3 opacity-40 hover:opacity-100"
-                      >
-                         {showChangePasswordOld ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                 </div>
+                 {!isPasswordResetFlow && (
+                   <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Old Password</label>
+                      <div className="relative">
+                         <input 
+                           type={showChangePasswordOld ? "text" : "password"} 
+                           value={changePasswordOld}
+                           onChange={(e) => setChangePasswordOld(e.target.value)}
+                           className="w-full bg-white border border-[#1A1A1A] p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#FF5F1F]"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowChangePasswordOld(!showChangePasswordOld)}
+                          className="absolute right-3 top-3 opacity-40 hover:opacity-100"
+                        >
+                           {showChangePasswordOld ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                   </div>
+                 )}
                  
                  <div>
                     <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">New Password</label>
@@ -2234,17 +2278,20 @@ export default function App() {
                        return;
                      }
                      try {
-                        const { error: signInError } = await supabase.auth.signInWithPassword({ email: user?.email || '', password: changePasswordOld });
-                        if (signInError) {
-                          alert("Incorrect old password.");
-                          setIsProcessing(false);
-                          return;
+                        if (!isPasswordResetFlow) {
+                          const { error: signInError } = await supabase.auth.signInWithPassword({ email: user?.email || '', password: changePasswordOld });
+                          if (signInError) {
+                            alert("Incorrect old password.");
+                            setIsProcessing(false);
+                            return;
+                          }
                         }
                         const { error: updateError } = await supabase.auth.updateUser({ password: changePasswordNew });
                         if (updateError) throw updateError;
                         
                         alert("Password successfully updated.");
                         setShowChangePasswordConfirm(false);
+                        setIsPasswordResetFlow(false);
                         setChangePasswordOld('');
                         setChangePasswordNew('');
                         setChangePasswordNewConfirm('');
@@ -2746,7 +2793,7 @@ export default function App() {
             <span className="flex items-center"><div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>Zero-Budget Stack</span>
           </div>
           <div className="text-[9px] font-mono">
-            BUILD // EXPO-EAS
+            BUILD // React.Js
           </div>
         </footer>
       )}
