@@ -571,7 +571,10 @@ export default function App() {
             {errorObj}
             {authMode === 'login' && errorObj.includes('Incorrect') && (
               <button 
-                onClick={() => setResetEmailSent(false) || setAuthMode('forgot_password')}
+                onClick={() => {
+                  setResetEmailSent(false);
+                  setAuthMode('forgot_password');
+                }}
                 className="mt-2 text-[10px] uppercase tracking-widest font-bold underline"
               >
                  Forgot Password?
@@ -808,7 +811,7 @@ export default function App() {
         ))}
       </div>
       <button 
-        onClick={processSafeMeals}
+        onClick={() => processSafeMeals()}
         disabled={isProcessing || profile.safeMeals.some(m => m.trim() === '')}
         className="w-full py-4 mt-8 bg-[#1A1A1A] text-white font-bold text-[12px] uppercase tracking-widest flex items-center justify-center hover:bg-[#FF5F1F] disabled:opacity-50 disabled:hover:bg-[#1A1A1A]"
       >
@@ -1848,7 +1851,7 @@ export default function App() {
 
   const handleChatSend = async () => {
      if (!chatInput.trim()) return;
-     const newChatList = [...chatMessages, { role: 'user' as const, parts: [{ text: chatInput }] }];
+     const newChatList = [...chatMessages, { role: 'user' as const, parts: [{ text: chatInput }] as [{ text: string }] }];
      syncChat(newChatList);
      setChatInput('');
      setIsProcessing(true);
@@ -1935,7 +1938,8 @@ export default function App() {
 
   if (isInitializing) {
     return (
-      <div className="w-full h-full bg-[#FDFCFB] text-[#1A1A1A] font-sans flex flex-col items-center justify-center">
+      // Changed h-full to min-h-screen here:
+      <div className="w-full min-h-screen bg-[#FDFCFB] text-[#1A1A1A] font-sans flex flex-col items-center justify-center">
         <RefreshCw className="animate-spin mb-4 text-[#FF5F1F]" size={48} />
         <h2 className="text-xl font-serif italic mb-2">Connecting to Secure Systems</h2>
         <span className="font-mono text-xs uppercase tracking-widest bg-[#1A1A1A] text-white px-4 py-2 opacity-80 animate-pulse">Please wait...</span>
