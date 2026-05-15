@@ -637,8 +637,12 @@ export default function App() {
           <div className="mt-4 text-center">
             <button 
               onClick={() => {
-                setErrorObj(null);
+                setResetEmailSent(false);
+                setAuthMode('forgot_password');
                 setShowForgotPassword(true);
+                setAuthEmail('');
+                setAuthPassword('');
+                setErrorObj(null);
               }}
               className="text-[10px] font-bold uppercase tracking-widest text-[#1A1A1A]/60 hover:text-[#FF5F1F]"
             >
