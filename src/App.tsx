@@ -98,6 +98,7 @@ export default function App() {
   const [authConfirmPassword, setAuthConfirmPassword] = useState('');
   const [isPasswordResetFlow, setIsPasswordResetFlow] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const isPopping = useRef(false);
   
 
 
@@ -122,6 +123,7 @@ export default function App() {
   const [showSafePlatesConfirm, setShowSafePlatesConfirm] = useState(false);
   const [showRegistrationEmailConfirm, setShowRegistrationEmailConfirm] = useState(false);
   const [nowValue, setNowValue] = useState(Date.now());
+  
 
   useEffect(() => {
     const timer = setInterval(() => setNowValue(Date.now()), 60000);
@@ -156,7 +158,14 @@ export default function App() {
   const chatInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Scroll to top when view changes
+    // 1. History API: Merekam jejak saat pindah halaman
+    if (isPopping.current) {
+      isPopping.current = false;
+    } else if (view !== 'auth' && view !== 'tos' && !view.startsWith('onboarding')) {
+      window.history.pushState({ view }, '');
+    }
+
+    // 2. Scroll ke atas saat ganti view
     if (view === 'chat') {
       setTimeout(() => chatInputRef.current?.focus(), 100);
     } else {
@@ -165,6 +174,21 @@ export default function App() {
       }, 100);
     }
   }, [view]);
+
+  // 3. Menangkap event tombol "Back" di HP
+  useEffect(() => {
+    window.history.replaceState({ view }, '');
+    const onPopState = (e: PopStateEvent) => {
+      isPopping.current = true;
+      if (e.state && e.state.view) {
+        setView(e.state.view);
+      } else {
+        setView('dashboard'); // Fallback aman
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1084,15 +1108,6 @@ export default function App() {
             <span className="font-serif italic text-2xl group-hover:underline decoration-[#FF5F1F] underline-offset-4">Scan Food/Label</span>
             <span className="text-[10px] uppercase tracking-widest mt-2 opacity-60">AI Mode Processing</span>
           </button>
-          
-          <input 
-            type="file"
-            accept="image/*"
-            capture="environment"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileChange}
-          />
           
           <button 
              onClick={() => setView('scanner')}
@@ -2826,6 +2841,8 @@ export default function App() {
                    <p><strong>History:</strong> This holds your <em>Safe Plates</em> (meals you know are safe) and a full database of every ingredient you've eaten.</p>
                    <p><strong>Scans Log:</strong> A chronological timeline of every photo or text scan you have ever done.</p>
                    <p className="text-red-600 font-bold"><strong>Allergies:</strong> Here you track dangerous flagged ingredients and log specific side effects you experience.</p>
+                   <p className="text-[#FF5F1F]"><strong>Mobile Back Button:</strong> You can now use your phone's native back button or swipe gesture anytime to return to the previous view safely.</p>
+                   <p><strong>Sticky Scanner:</strong> When exploring other pages, look for the floating action buttons in the bottom right corner to quickly scan labels without going back to the dashboard.</p>
                  </div>
                  
                  {/* Tombol: shrink-0 agar tetap aman di bawah */}
@@ -2834,6 +2851,39 @@ export default function App() {
                  </button>
                  
               </div>
+           </div>
+        )}
+
+        {/* =========================================
+            STICKY SCANNER BUTTONS & GLOBAL CAMERA
+            ========================================= */}
+        {/* Global Input Camera */}
+        <input 
+          type="file"
+          accept="image/*"
+          capture="environment"
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {/* Sticky Buttons - Tidak muncul di halaman Dashboard, Scanner, Chat, Settings & Auth */}
+        {!['auth', 'tos', 'onboarding_age', 'onboarding_allergies', 'onboarding_meals', 'dashboard', 'settings', 'scanner', 'chat'].includes(view) && (
+           <div className="fixed bottom-6 right-4 md:bottom-8 md:right-8 z-40 flex flex-col gap-3">
+              <button 
+                 onClick={() => fileInputRef.current?.click()} 
+                 className="w-14 h-14 bg-[#FF5F1F] text-white border-2 border-[#1A1A1A] shadow-[4px_4px_0px_#1A1A1A] flex items-center justify-center hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_#1A1A1A] transition-all"
+                 title="Scan with Camera"
+              >
+                 <Camera size={24} />
+              </button>
+              <button 
+                 onClick={() => setView('scanner')} 
+                 className="w-14 h-14 bg-white text-[#1A1A1A] border-2 border-[#1A1A1A] shadow-[4px_4px_0px_#1A1A1A] flex items-center justify-center hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_#1A1A1A] transition-all"
+                 title="Manual API Entry"
+              >
+                 <Search size={24} />
+              </button>
            </div>
         )}
       </main>
