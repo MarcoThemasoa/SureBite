@@ -768,7 +768,7 @@ export default function App() {
         </div>
         <h2 className="text-3xl font-serif italic tracking-tight mb-4 text-center">Experimental Tool</h2>
         <p className="text-sm opacity-80 leading-relaxed mb-6 font-medium">
-          SureBite is an experimental tool, NOT a medical device. It relies on public APIs and AI that can hallucinate. You assume all risks.
+          SureBite is an experimental tool, NOT a medical device. It relies on public APIs and AI that can hallucinate. All risks are assumed and or understood by the user.
         </p>
         <button 
           onClick={() => setView('onboarding_age')}
@@ -963,9 +963,9 @@ export default function App() {
                   : 'bg-white text-[#1A1A1A] shadow-[2px_2px_0px_#1A1A1A] hover:bg-[#FF5F1F] hover:text-white'
               }`}
             >
-              {f === 'all' && 'All Status'}
-              {f === 'good' && 'Safe Only'}
-              {f === 'bad' && 'Danger Only'}
+              {f === 'all' && 'All'}
+              {f === 'good' && 'Safe'}
+              {f === 'bad' && 'Danger/Flagged'}
             </button>
           ))}
         </div>
@@ -1003,7 +1003,7 @@ export default function App() {
             })
           )}
         </div>
-        
+
         {scansLogTotalPages > 1 && (
           <div className="mt-8 flex justify-between items-center bg-[#1A1A1A] p-2 text-white shadow-[4px_4px_0px_#FF5F1F]">
             <button 
@@ -1976,7 +1976,7 @@ export default function App() {
           <div className="flex-1 p-6 flex flex-col gap-4 bg-[#FDFCFB] min-h-0 overflow-y-auto">
              {chatMessages.length === 0 && (
                 <div className="my-auto text-center opacity-50 font-serif italic">
-                   Ask me about ingredients, allergies, or your safe plates!
+                   Ask me about ingredients, allergies, or your safe plates! (This chat clears after 24 hours)
                 </div>
              )}
              {chatMessages.map((msg, i) => (
@@ -2337,17 +2337,16 @@ export default function App() {
                        return;
                      }
                      try {
+                        // Siapkan payload update
+                        const updatePayload: any = { password: changePasswordNew };
+                        
+                        // Masukkan password lama untuk melewati security Supabase
                         if (!isPasswordResetFlow) {
-                          const currentSession = await supabase.auth.getSession();
-                          const currentUserEmail = currentSession.data.session?.user?.email;
-                          const { error: signInError } = await supabase.auth.signInWithPassword({ email: currentUserEmail || '', password: changePasswordOld });
-                          if (signInError) {
-                            alert("Incorrect old password. Please try again.");
-                            setIsProcessing(false);
-                            return;
-                          }
+                          updatePayload.currentPassword = changePasswordOld;
+                          updatePayload.current_password = changePasswordOld; 
                         }
-                        const { error: updateError } = await supabase.auth.updateUser({ password: changePasswordNew });
+                        
+                        const { error: updateError } = await supabase.auth.updateUser(updatePayload);
                         if (updateError) throw updateError;
                         
                         alert("Password successfully updated.");
@@ -2357,7 +2356,7 @@ export default function App() {
                         setChangePasswordNew('');
                         setChangePasswordNewConfirm('');
                      } catch (e: any) {
-                        alert(e.message || "Failed to update password");
+                        alert(e.message || "Failed to update password. Make sure your old password is correct.");
                      } finally {
                         setIsProcessing(false);
                      }

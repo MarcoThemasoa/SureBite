@@ -72,3 +72,36 @@ main > div:not(.fixed) {
   text-decoration-thickness: 2px;
   animation: blink-underline 1.2s ease-in-out infinite;
 }
+
+/* =========================================
+   ANIMASI TOMBOL GLOBAL (FORCE APPLY)
+   ========================================= */
+button {
+  transition: all 0.25s ease-in-out !important;
+}
+button:not(:disabled):active {
+  transform: scale(0.96) !important; /* Efek ditekan */
+}
+button:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.5 !important;
+  transform: scale(1) !important;
+}
+
+/* =========================================
+   SCROLLBAR KUSTOM (Untuk Tutorial & Filter)
+   ========================================= */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px; /* Untuk scroll menyamping di filter Scans Log */
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #D1D5DB; 
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #FF5F1F; 
+}
