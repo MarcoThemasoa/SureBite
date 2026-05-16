@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Markdown from 'react-markdown';
 import { extractSafeBaseIngredients, analyzeFoodImage, analyzeFoodText, chatWithAssistant, AnalysisResult } from './lib/gemini';
-import { Camera, ShieldAlert, Check, RefreshCw, Search, ChevronRight, AlertTriangle, LayoutDashboard, List, MessageSquare, Settings, Plus, Send, LogOut, Eye, EyeOff, Lock } from 'lucide-react';
+import { Camera, ShieldAlert, Check, RefreshCw, Search, ChevronRight, AlertTriangle, LayoutDashboard, List, MessageSquare, Settings, Plus, Send, LogOut, Eye, EyeOff, Lock, Menu, X, ChevronDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -97,6 +97,8 @@ export default function App() {
   const [dangerZonePage, setDangerZonePage] = useState(1);
   const [authConfirmPassword, setAuthConfirmPassword] = useState('');
   const [isPasswordResetFlow, setIsPasswordResetFlow] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  
 
 
   const BROAD_CATEGORIES: Record<string, string[]> = {
@@ -188,6 +190,12 @@ export default function App() {
       } else {
         setView('auth');
         setIsInitializing(false);
+        setAuthEmail('');
+        setAuthPassword('');
+        setAuthConfirmPassword('');
+        setChangePasswordOld('');
+        setChangePasswordNew('');
+        setChangePasswordNewConfirm('');
       }
     });
 
@@ -869,14 +877,15 @@ export default function App() {
 
   const [scansSearchQuery, setScansSearchQuery] = useState('');
   const [scansTimeFilter, setScansTimeFilter] = useState<'all' | '7days' | '30days'>('all');
-
+  const [scansStatusFilter, setScansStatusFilter] = useState<'all' | 'good' | 'bad'>('all');
+  
   const getEffectiveStatus = (standard_name: string, original_status: string) => {
     return profile?.ingredientOverrides?.[standard_name] || original_status;
   };
 
   const renderScansHistory = () => {
     const filteredHistory = history.filter(scan => {
-      // Time filter
+      // 1. Time filter
       const scanDate = new Date(scan.timestamp);
       const now = new Date();
       const diffTime = Math.abs(now.getTime() - scanDate.getTime());
@@ -886,12 +895,23 @@ export default function App() {
       if (scansTimeFilter === '7days') matchesTime = diffDays <= 7;
       if (scansTimeFilter === '30days') matchesTime = diffDays <= 30;
 
-      // Search filter (search by ingredient names or ID)
+      // 2. Search filter
       const matchesSearch = scansSearchQuery === '' || 
         scan.id.toLowerCase().includes(scansSearchQuery.toLowerCase()) ||
         scan.results.some(r => r.standard_name.toLowerCase().includes(scansSearchQuery.toLowerCase()));
 
-      return matchesTime && matchesSearch;
+      // 3. Status filter (Safe vs Danger)
+      let matchesStatus = true;
+      if (scansStatusFilter !== 'all') {
+        const hasRed = scan.results.some(r => getEffectiveStatus(r.standard_name, r.status) === 'red');
+        const hasYellow = scan.results.some(r => getEffectiveStatus(r.standard_name, r.status) === 'yellow');
+        const isDanger = hasRed || hasYellow;
+        
+        if (scansStatusFilter === 'bad') matchesStatus = isDanger;
+        if (scansStatusFilter === 'good') matchesStatus = !isDanger;
+      }
+
+      return matchesTime && matchesSearch && matchesStatus;
     });
 
     const scansLogTotalPages = Math.max(1, Math.ceil(filteredHistory.length / 8));
@@ -901,7 +921,8 @@ export default function App() {
       <div className="flex-1 flex flex-col bg-[#FDFCFB] p-6 pb-24 md:p-12 md:pb-12 max-w-4xl mx-auto w-full">
         <h2 className="text-4xl font-serif italic mb-8">Scans Log</h2>
         
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        {/* Search & Dropdown Time Filter */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
            <div className="flex-1 relative">
              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 opacity-50" />
              <input 
@@ -909,20 +930,47 @@ export default function App() {
                placeholder="Search ingredients..." 
                value={scansSearchQuery}
                onChange={e => { setScansSearchQuery(e.target.value); setScansLogPage(1); }}
-               className="w-full pl-10 border-b border-[#1A1A1A] bg-transparent pb-2 text-sm focus:outline-none focus:border-[#FF5F1F]"
+               className="w-full pl-10 border-b border-[#1A1A1A] bg-transparent py-3 text-sm focus:outline-none focus:border-[#FF5F1F]"
              />
            </div>
-           <select 
-             value={scansTimeFilter} 
-             onChange={e => { setScansTimeFilter(e.target.value as any); setScansLogPage(1); }}
-             className="bg-transparent border-b border-[#1A1A1A] pb-2 text-sm focus:outline-none focus:border-[#FF5F1F]"
-           >
-             <option value="all">All Time</option>
-             <option value="7days">Last 7 Days</option>
-             <option value="30days">Last 30 Days</option>
-           </select>
+
+           {/* Custom Brutalist Dropdown */}
+           <div className="relative shrink-0 w-full md:w-auto">
+             <select 
+               value={scansTimeFilter} 
+               onChange={e => { setScansTimeFilter(e.target.value as any); setScansLogPage(1); }}
+               className="w-full md:w-48 appearance-none bg-white border-2 border-[#1A1A1A] shadow-[4px_4px_0px_#1A1A1A] p-3 pr-10 text-[10px] font-bold uppercase tracking-widest cursor-pointer focus:outline-none transition-transform active:translate-y-[2px] active:shadow-[2px_2px_0px_#1A1A1A]"
+             >
+               <option value="all" className="bg-white text-black font-sans">All Time</option>
+               <option value="7days" className="bg-white text-black font-sans">Last 7 Days</option>
+               <option value="30days" className="bg-white text-black font-sans">Last 30 Days</option>
+             </select>
+             <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-[#1A1A1A]">
+               <ChevronDown size={16} />
+             </div>
+           </div>
         </div>
 
+        {/* Button Group Status Filter (Safe/Danger) */}
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-2 custom-scrollbar">
+          {(['all', 'good', 'bad'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => { setScansStatusFilter(f); setScansLogPage(1); }}
+              className={`px-6 py-3 border-2 border-[#1A1A1A] text-[10px] font-bold uppercase tracking-widest shrink-0 transition-colors ${
+                scansStatusFilter === f
+                  ? 'bg-[#1A1A1A] text-white shadow-none translate-y-[2px]'
+                  : 'bg-white text-[#1A1A1A] shadow-[2px_2px_0px_#1A1A1A] hover:bg-[#FF5F1F] hover:text-white'
+              }`}
+            >
+              {f === 'all' && 'All Status'}
+              {f === 'good' && 'Safe Only'}
+              {f === 'bad' && 'Danger Only'}
+            </button>
+          ))}
+        </div>
+
+        {/* Grid List Hasil Scan */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayedScans.length === 0 ? (
             <p className="opacity-40 italic font-serif text-sm col-span-full">No scans found matching filters.</p>
@@ -955,7 +1003,7 @@ export default function App() {
             })
           )}
         </div>
-
+        
         {scansLogTotalPages > 1 && (
           <div className="mt-8 flex justify-between items-center bg-[#1A1A1A] p-2 text-white shadow-[4px_4px_0px_#FF5F1F]">
             <button 
@@ -1148,12 +1196,13 @@ export default function App() {
             </p>
             <div className="grid grid-cols-2 gap-2">
                <button 
-                 onClick={() => setPendingConfirmSafe(currentScan)}
+                 onClick={() => { if (currentScan.mood !== 'good') setPendingConfirmSafe(currentScan); }}
+                 disabled={currentScan.mood === 'good'}
                  className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest border transition-colors ${
-                    currentScan.mood === 'good' ? 'bg-green-500 border-green-500 text-white' : 'border-white/30 hover:bg-white hover:text-black hover:bg-opacity-100 opacity-80'
+                    currentScan.mood === 'good' ? 'bg-green-500 border-green-500 text-white cursor-default opacity-100' : 'border-white/30 hover:bg-white hover:text-black hover:bg-opacity-100 opacity-80'
                  }`}
                >
-                 Mark as Safe
+                 {currentScan.mood === 'good' ? 'Safe (Auto-Marked)' : 'Mark as Safe'}
                </button>
                <button 
                  onClick={() => setPendingConfirmUnsafe(currentScan)}
@@ -1493,7 +1542,7 @@ export default function App() {
 
     return (
        <div className="flex-1 flex flex-col bg-[#FDFCFB] p-6 pb-24 md:p-12 md:pb-12 max-w-4xl mx-auto w-full">
-         <h2 className="text-4xl font-serif italic text-red-600 mb-2">Danger Zone</h2>
+         <h2 className="text-4xl font-serif italic text-red-600 mb-2">Allergies & Sensitivities</h2>
          <p className="text-sm opacity-70 mb-6 max-w-2xl">This is a consolidated list of your red (clinical allergens), yellow (sensitivities), and blue (novel) ingredients based on your history and overrides. You can log specific side effects for each to track your reactions.</p>
          
          <div className="flex gap-2 mb-8 overflow-x-auto pb-2 shrink-0">
@@ -1995,51 +2044,57 @@ export default function App() {
 
   return (
     <div className="w-full min-h-screen bg-[#FDFCFB] text-[#1A1A1A] font-sans flex flex-col select-none relative">
-      <header className="flex items-end justify-between px-6 pt-8 pb-4 border-b border-[#1A1A1A] shrink-0">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold tracking-[0.2em] uppercase mb-1 opacity-60">Be sure of your bites.</span>
-          <h1 className="text-4xl font-serif italic tracking-tight leading-none text-[#FF5F1F]">SureBite</h1>
-        </div>
-        <div className="flex flex-col items-end">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-8 h-8 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white shadow-[2px_2px_0px_#FF5F1F]">
-              <ShieldAlert size={14} />
-            </div>
+      {(view !== 'auth' && view !== 'tos' && view !== 'onboarding_age' && view !== 'onboarding_allergies' && view !== 'onboarding_meals') && (
+      <header className="flex items-center justify-between px-4 py-3 border-b-2 border-[#1A1A1A] bg-[#FDFCFB] sticky top-0 z-50">
+        
+        {/* Navigasi Kiri (Menu Hamburger) */}
+        <div className="relative">
+          {/* Overlay tembus pandang untuk deteksi click outside */}
+          <div 
+            className={`fixed inset-0 z-40 transition-opacity duration-300 ${isNavOpen ? 'opacity-100 pointer-events-auto bg-black/5 backdrop-blur-[1px]' : 'opacity-0 pointer-events-none'}`} 
+            onClick={() => setIsNavOpen(false)}
+          />
+          
+          <button onClick={() => setIsNavOpen(!isNavOpen)} className="relative z-50 w-10 h-10 border-2 border-[#1A1A1A] flex items-center justify-center bg-white hover:bg-[#1A1A1A] hover:text-white transition-colors shadow-[2px_2px_0px_#1A1A1A] active:translate-y-[2px] active:shadow-none">
+            {isNavOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+          
+          {/* Dropdown Menu (Animasi smooth scale & fade) */}
+          <div className={`absolute top-14 left-0 w-48 bg-white border-2 border-[#1A1A1A] shadow-[4px_4px_0px_#1A1A1A] flex flex-col z-50 divide-y border-[#1A1A1A] transition-all duration-300 origin-top-left ${isNavOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+            <button className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold tracking-widest uppercase hover:bg-[#FF5F1F] hover:text-white transition-colors text-left" onClick={() => { setIsNavOpen(false); setView('dashboard'); }}>
+              <LayoutDashboard size={14} /> Dashboard
+            </button>
+            <button className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold tracking-widest uppercase hover:bg-[#FF5F1F] hover:text-white transition-colors text-left" onClick={() => { setIsNavOpen(false); setView('ingredients'); }}>
+              <List size={14} /> History
+            </button>
+            <button className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold tracking-widest uppercase hover:bg-[#FF5F1F] hover:text-white transition-colors text-left" onClick={() => { setIsNavOpen(false); setView('scans_history'); }}>
+              <Search size={14} /> Scans Log
+            </button>
+            <button className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold tracking-widest uppercase hover:bg-red-500 hover:text-white transition-colors text-left text-red-600" onClick={() => { setIsNavOpen(false); setView('danger_zone'); }}>
+              <AlertTriangle size={14} /> Allergies
+            </button>
+            <button className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold tracking-widest uppercase hover:bg-[#FF5F1F] hover:text-white transition-colors text-left" onClick={() => { setIsNavOpen(false); setView('chat'); }}>
+              <MessageSquare size={14} /> AI Chat
+            </button>
           </div>
-          <span className="text-[9px] font-mono uppercase tracking-widest border border-[#1A1A1A] px-1 py-0.5 shadow-[1px_1px_0px_#1A1A1A]">Active</span>
         </div>
+
+        {/* Tengah (Logo & Teks) */}
+        <div className="flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-[8px] font-bold tracking-[0.2em] uppercase mb-0.5 opacity-60">Be sure of your bites</span>
+          <h1 className="text-2xl font-serif italic tracking-tight leading-none text-[#FF5F1F]">SureBite</h1>
+        </div>
+
+        {/* Kanan (Settings) */}
+        <button onClick={() => { setIsNavOpen(false); setView('settings'); }} className="w-10 h-10 border-2 border-[#1A1A1A] flex items-center justify-center bg-white hover:bg-[#1A1A1A] hover:text-white transition-colors shadow-[2px_2px_0px_#1A1A1A] active:translate-y-[2px] active:shadow-none">
+          <Settings size={18} />
+        </button>
+
       </header>
+      )}
 
       <div className="flex-1 flex flex-col md:flex-row relative">
-        {(view !== 'tos' && view !== 'auth') && (
-          <nav className="fixed bottom-0 left-0 md:static md:sticky md:top-0 md:h-screen border-t md:border-t-0 md:border-b-0 md:border-r border-[#1A1A1A] flex flex-row md:flex-col items-center py-3 md:py-6 gap-2 md:gap-8 shrink-0 md:w-20 overflow-hidden px-2 md:px-0 bg-[#F5F3EF] z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:shadow-none justify-around md:justify-start w-full order-last md:order-first">
-            <button className={`flex flex-col items-center gap-1 min-w-[44px] ${view === 'dashboard' ? 'text-[#FF5F1F]' : 'opacity-40 hover:opacity-100'} transition-all`} onClick={() => setView('dashboard')}>
-              <LayoutDashboard size={20} className="hover:scale-110 transition-transform" />
-              <span className="text-[7px] font-bold tracking-widest uppercase mt-1">Dash</span>
-            </button>
-            <button className={`flex flex-col items-center gap-1 min-w-[44px] ${['ingredients', 'safe_plates_edit', 'allergies_edit'].includes(view) ? 'text-[#FF5F1F]' : 'opacity-40 hover:opacity-100'} transition-all`} onClick={() => setView('ingredients')}>
-              <List size={20} className="hover:scale-110 transition-transform" />
-              <span className="text-[7px] font-bold tracking-widest uppercase mt-1">History</span>
-            </button>
-            <button className={`flex flex-col items-center gap-1 min-w-[44px] ${view === 'scans_history' ? 'text-[#FF5F1F]' : 'opacity-40 hover:opacity-100'} transition-all`} onClick={() => setView('scans_history')}>
-              <Search size={20} className="hover:scale-110 transition-transform" />
-              <span className="text-[7px] font-bold tracking-widest uppercase mt-1">Scans</span>
-            </button>
-            <button className={`flex flex-col items-center gap-1 min-w-[44px] ${view === 'danger_zone' ? 'text-red-600' : 'opacity-40 hover:opacity-100'} transition-all`} onClick={() => setView('danger_zone')}>
-              <AlertTriangle size={20} className="hover:scale-110 transition-transform" />
-              <span className="text-[7px] font-bold tracking-widest uppercase mt-1">Danger</span>
-            </button>
-            <button className={`flex flex-col items-center gap-1 min-w-[44px] ${view === 'chat' ? 'text-[#FF5F1F]' : 'opacity-40 hover:opacity-100'} transition-all`} onClick={() => setView('chat')}>
-               <MessageSquare size={20} className="hover:scale-110 transition-transform" />
-               <span className="text-[7px] font-bold tracking-widest uppercase mt-1">Chat</span>
-            </button>
-            <div className="flex-1 hidden md:block" />
-            <button className={`flex flex-col items-center gap-1 min-w-[44px] ${view === 'settings' ? 'text-[#FF5F1F]' : 'opacity-40 hover:opacity-100'} transition-all mb-0 md:mb-4`} onClick={() => setView('settings')}>
-              <Settings size={20} className="hover:scale-110 transition-transform" />
-              <span className="text-[7px] font-bold tracking-widest uppercase mt-1">Settings</span>
-            </button>
-          </nav>
-        )}
+        
         
         <main className="flex-1 flex flex-col min-w-0 relative">
           {(isProcessing || isSynthesizingBackground) && view !== 'result' && view !== 'chat' && view !== 'auth' && view !== 'tos' && view !== 'onboarding_age' && view !== 'onboarding_allergies' && view !== 'onboarding_meals' && (
@@ -2283,9 +2338,11 @@ export default function App() {
                      }
                      try {
                         if (!isPasswordResetFlow) {
-                          const { error: signInError } = await supabase.auth.signInWithPassword({ email: user?.email || '', password: changePasswordOld });
+                          const currentSession = await supabase.auth.getSession();
+                          const currentUserEmail = currentSession.data.session?.user?.email;
+                          const { error: signInError } = await supabase.auth.signInWithPassword({ email: currentUserEmail || '', password: changePasswordOld });
                           if (signInError) {
-                            alert("Incorrect old password.");
+                            alert("Incorrect old password. Please try again.");
                             setIsProcessing(false);
                             return;
                           }
@@ -2724,66 +2781,59 @@ export default function App() {
               </div>
             )}
             
-        {tutorialStep > 0 && (
-           <div className="fixed inset-0 z-[100] bg-black/40 pointer-events-none flex flex-col items-center p-4">
-              <div 
-                className={`bg-white border-2 pointer-events-auto border-[#1A1A1A] shadow-[8px_8px_0px_#1A1A1A] p-6 max-w-sm w-full absolute transition-all duration-500 ease-in-out ${
-                  tutorialStep === 3 ? 'bottom-24' : tutorialStep === 4 ? 'top-24' : 'top-1/4'
-                }`}
-              >
-                 {tutorialStep === 1 && (
-                   <>
-                     <h3 className="text-xl font-serif italic mb-4">Welcome to SureBite</h3>
-                     <p className="text-sm opacity-80 mb-6">This is your dashboard. Here you will see your scan history and current status. Let's show you how to use the app.</p>
-                   </>
-                 )}
-                 {tutorialStep === 2 && (
-                   <>
-                     <h3 className="text-xl font-serif italic mb-4">Scans Log & Danger Levels</h3>
-                     <p className="text-sm opacity-80 mb-6">Each item in your scan history is marked by a danger level. <span className="text-red-500 font-bold">Red</span> is dangerous (severe allergies), <span className="text-yellow-500 font-bold">Yellow</span> means proceed with caution, and <span className="text-green-500 font-bold">Green</span> is safe.</p>
-                   </>
-                 )}
-                 {tutorialStep === 3 && (
-                   <>
-                     <h3 className="text-xl font-serif italic mb-4">Scanning Food</h3>
-                     <p className="text-sm opacity-80 mb-6">Use the large '+' button just below this box to quickly scan ingredients with your camera or search them by text.</p>
-                   </>
-                 )}
-                 {tutorialStep === 4 && (
-                   <>
-                     <h3 className="text-xl font-serif italic mb-4">Safe Plates</h3>
-                     <p className="text-sm opacity-80 mb-6">Here on the Ingredients page, you can edit your custom baseline diet and ingredients! This trains the AI on what you safely eat.</p>
-                   </>
-                 )}
-                 {tutorialStep === 5 && (
-                   <>
-                     <h3 className="text-xl font-serif italic mb-4">AI Chat</h3>
-                     <p className="text-sm opacity-80 mb-6">The AI Chat remembers your allergies and safe plates. Ask it anything about your food risk profile here!</p>
-                   </>
-                 )}
-                 <div className="flex justify-between items-center mt-6">
-                   <div className="flex gap-1">
-                     {[1,2,3,4,5].map(s => (
-                       <div key={s} className={`w-2 h-2 rounded-full transition-colors ${tutorialStep === s ? 'bg-[#FF5F1F]' : 'bg-gray-300'}`} />
-                     ))}
-                   </div>
-                   <div className="flex gap-3 items-center">
-                     {tutorialStep < 5 ? (
-                       <>
-                         <button onClick={() => { setTutorialStep(0); setView('dashboard'); }} className="text-[10px] uppercase font-bold tracking-widest opacity-50 hover:opacity-100 p-2">Skip</button>
-                         <button onClick={() => { 
-                            const nextStep = tutorialStep + 1;
-                            setTutorialStep(nextStep); 
-                            if (nextStep === 3) setView('dashboard'); // Scanning
-                            if (nextStep === 4) setView('ingredients');
-                            if (nextStep === 5) setView('chat');
-                         }} className="px-4 py-3 bg-[#1A1A1A] text-white text-[10px] uppercase font-bold tracking-widest hover:bg-[#FF5F1F]">Next ➝</button>
-                       </>
-                     ) : (
-                       <button onClick={() => { setTutorialStep(0); setView('dashboard'); }} className="px-6 py-3 bg-[#FF5F1F] text-white text-[10px] uppercase font-bold tracking-widest hover:bg-[#E04E15]">Get Started</button>
-                     )}
-                   </div>
+        {/* Step 1: Welcome (Dashboard) - Muncul di Bawah */}
+        {tutorialStep > 0 && view === 'dashboard' && tutorialStep === 1 && (
+           <div className="fixed inset-0 z-[100] bg-black/60 pointer-events-none flex flex-col items-center justify-end pb-24 px-4">
+              <div className="bg-white border-2 pointer-events-auto border-[#1A1A1A] shadow-[8px_8px_0px_#1A1A1A] p-6 max-w-sm w-full text-center">
+                 <h3 className="text-xl font-serif italic mb-3">Welcome to SureBite</h3>
+                 <p className="text-sm opacity-80 mb-5 leading-relaxed">This is your dashboard, the main hub to manage your food safety. Let's take a quick tour.</p>
+                 <button onClick={() => setTutorialStep(2)} className="w-full py-3 bg-[#FF5F1F] text-white text-[10px] uppercase font-bold tracking-widest hover:bg-[#E04E15]">Start Tour</button>
+              </div>
+           </div>
+        )}
+
+        {/* Step 2: Scanner (Dashboard) - Muncul di Atas agar tombol Scanner di tengah tidak tertutup */}
+        {tutorialStep === 2 && view === 'dashboard' && (
+           <div className="fixed inset-0 z-[100] bg-black/60 pointer-events-none flex flex-col items-center justify-start pt-24 px-4">
+              <div className="bg-white border-2 pointer-events-auto border-[#1A1A1A] shadow-[8px_8px_0px_#1A1A1A] p-6 max-w-sm w-full text-center">
+                 <h3 className="text-xl font-serif italic mb-3">Scanning Food</h3>
+                 <p className="text-sm opacity-80 mb-5 leading-relaxed">The large button below is your primary tool. It uses AI to scan food labels or text and cross-references them with your profile.</p>
+                 <button onClick={() => { setTutorialStep(3); setView('scanner'); }} className="w-full py-3 bg-[#1A1A1A] text-white text-[10px] uppercase font-bold tracking-widest hover:bg-[#FF5F1F]">I Understand</button>
+              </div>
+           </div>
+        )}
+
+        {/* Step 3: Analysis (Scanner) - Muncul di Bawah */}
+        {tutorialStep === 3 && view === 'scanner' && (
+           <div className="fixed inset-0 z-[100] bg-black/60 pointer-events-none flex flex-col items-center justify-end pb-24 px-4">
+              <div className="bg-white border-2 pointer-events-auto border-[#1A1A1A] shadow-[8px_8px_0px_#1A1A1A] p-6 max-w-sm w-full text-center">
+                 <h3 className="text-xl font-serif italic mb-3">Immediate Analysis</h3>
+                 <p className="text-sm opacity-80 mb-5 leading-relaxed">When you scan, SureBite checks every ingredient safely. Next, let's explore your records via the top-left menu.</p>
+                 <button onClick={() => { setTutorialStep(4); setView('dashboard'); setIsNavOpen(true); }} className="w-full py-3 bg-[#1A1A1A] text-white text-[10px] uppercase font-bold tracking-widest hover:bg-[#FF5F1F]">Open Menu</button>
+              </div>
+           </div>
+        )}
+
+        {/* Step 4: Menu open - Dipindah ke BAWAH dan Dibuat Scrollable agar tidak menutupi Menu Kiri */}
+        {tutorialStep === 4 && isNavOpen && (
+           <div className="fixed inset-0 z-[100] bg-black/60 pointer-events-none flex flex-col items-center justify-end pb-10 px-4">
+              <div className="bg-white border-2 pointer-events-auto border-[#1A1A1A] shadow-[8px_8px_0px_#1A1A1A] p-5 max-w-sm w-full text-left flex flex-col max-h-[55vh]">
+                 
+                 {/* Judul: shrink-0 agar tidak ikut menyusut saat di-scroll */}
+                 <h3 className="text-xl font-serif italic mb-3 shrink-0">The Navigation Menu</h3>
+                 
+                 {/* Konten Teks: overflow-y-auto agar bisa di-scroll kalau layar kekecilan */}
+                 <div className="text-xs opacity-80 mb-4 space-y-3 leading-relaxed overflow-y-auto pr-2 custom-scrollbar">
+                   <p><strong>History:</strong> This holds your <em>Safe Plates</em> (meals you know are safe) and a full database of every ingredient you've eaten.</p>
+                   <p><strong>Scans Log:</strong> A chronological timeline of every photo or text scan you have ever done.</p>
+                   <p className="text-red-600 font-bold"><strong>Allergies:</strong> Here you track dangerous flagged ingredients and log specific side effects you experience.</p>
                  </div>
+                 
+                 {/* Tombol: shrink-0 agar tetap aman di bawah */}
+                 <button onClick={() => { setTutorialStep(0); setIsNavOpen(false); localStorage.setItem('tutorialCompleted', 'true'); }} className="w-full py-3 bg-[#FF5F1F] text-white text-[10px] uppercase font-bold tracking-widest hover:bg-[#E04E15] shrink-0">
+                    <Check size={14} className="inline mr-2"/> Finish Tour
+                 </button>
+                 
               </div>
            </div>
         )}
@@ -2791,13 +2841,21 @@ export default function App() {
       </div>
 
       {(view !== 'tos' && view !== 'auth') && (
-        <footer className="h-12 border-t border-[#1A1A1A] flex items-center px-6 justify-between bg-white shrink-0 mb-[72px] md:mb-0">
-          <div className="flex gap-4 md:gap-8 text-[9px] font-bold tracking-widest uppercase items-center">
-            <span className="hidden md:inline">SureBite System</span>
-            <span className="flex items-center"><div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>Zero-Budget Stack</span>
-          </div>
-          <div className="text-[9px] font-mono">
-            BUILD // React.Js
+        <footer className="border-t border-[#1A1A1A] bg-[#FDFCFB] shrink-0">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-3">
+            
+            {/* Disclaimer Kiri */}
+            <div className="text-[9px] font-bold tracking-widest uppercase flex flex-wrap items-center justify-center md:justify-start gap-2 opacity-80">
+               <span className="flex items-center text-[#1A1A1A]"><div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>System Active</span>
+               <span className="hidden sm:inline opacity-30">|</span>
+               <span className="text-red-600 flex items-center"><AlertTriangle size={10} className="mr-1" /> AI can make mistakes. Verify info.</span>
+            </div>
+
+            {/* Credit Kanan */}
+            <div className="text-[10px] font-mono opacity-60">
+               Built by <a href="https://marco-web-portfolio.vercel.app/#/" target="_blank" rel="noopener noreferrer" className="font-bold text-[#1A1A1A] hover:text-[#FF5F1F] transition-colors animate-blink-underline underline-offset-4">Marco</a> <span className="mx-1">|</span> SureBite
+            </div>
+
           </div>
         </footer>
       )}

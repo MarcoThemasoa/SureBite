@@ -28,3 +28,47 @@ html, body, #root {
   font-size: 1.25rem;
 }
 .markdown-style a { color: var(--color-brand); text-decoration: underline; text-underline-offset: 2px; }
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animasi hanya memudar (untuk background gelap / dim, agar tidak ikut naik) */
+@keyframes fade-in-only {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* 1. Layar Gelap (Dim Background): Hanya Fade In */
+.fixed.inset-0.bg-black\/60,
+.fixed.inset-0.bg-black\/5 {
+  animation: fade-in-only 0.3s ease-out forwards;
+}
+
+/* 2. Kotak Putih Modal/Tutorial: Fade In & Slide Up */
+.fixed.inset-0 > .bg-white {
+  animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 3. Perpindahan Halaman: Fade In & Slide Up (KECUALI elemen .fixed agar layar gelap tidak ikut naik) */
+main > div:not(.fixed) {
+  animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes blink-underline {
+  0%, 100% { text-decoration-color: transparent; }
+  50% { text-decoration-color: #FF5F1F; } /* Warna oranye khas SureBite */
+}
+
+.animate-blink-underline {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  animation: blink-underline 1.2s ease-in-out infinite;
+}
