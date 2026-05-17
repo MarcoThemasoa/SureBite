@@ -403,6 +403,14 @@ export default function App() {
         allergies: profile.allergies,
         safeIngredients: profile.baseIngredients
       });
+
+      // Validasi jika tidak ada bahan terdeteksi atau objek tidak dikenal
+      if (!analysis.results || analysis.results.length === 0 || (analysis.foodName && analysis.foodName.toLowerCase().includes('unknown'))) {
+        setErrorObj("Ingredients not detected or object unknown. Please re-scan or type clearly.");
+        setIsProcessing(false);
+        return;
+      }
+
       const newScan: ScanEvent = {
         id: crypto.randomUUID(),
         timestamp: new Date(),
@@ -486,6 +494,13 @@ export default function App() {
             safeIngredients: profile.baseIngredients
           });
           
+          // Validasi jika gambar blur, tidak ada bahan terdeteksi, atau objek tidak dikenal
+          if (!analysis.results || analysis.results.length === 0 || (analysis.foodName && analysis.foodName.toLowerCase().includes('unknown'))) {
+            setErrorObj("Failed to recognize food or label. Please re-scan with clearer lighting.");
+            setIsProcessing(false);
+            return;
+          }
+
           const newScan: ScanEvent = {
             id: crypto.randomUUID(),
             timestamp: new Date(),
@@ -2113,7 +2128,7 @@ export default function App() {
         
         <main className="flex-1 flex flex-col min-w-0 relative">
           {(isProcessing || isSynthesizingBackground) && view !== 'result' && view !== 'chat' && view !== 'auth' && view !== 'tos' && view !== 'onboarding_age' && view !== 'onboarding_allergies' && view !== 'onboarding_meals' && (
-            <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto border-4 border-[#FF5F1F]">
+            <div className="fixed inset-0 z-50 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-auto border-4 border-[#FF5F1F]">
               <RefreshCw className="animate-spin mb-4 text-[#FF5F1F]" size={48} />
               <h2 className="text-xl font-serif italic mb-2">Synthesizing Data</h2>
               <span className="font-mono text-xs uppercase tracking-widest bg-[#1A1A1A] text-white px-4 py-2 opacity-80"><RotatingLoadingText /></span>
@@ -2806,9 +2821,9 @@ export default function App() {
            </div>
         )}
 
-        {/* Step 2: Scanner (Dashboard) - Muncul di Atas agar tombol Scanner di tengah tidak tertutup */}
+        {/* Step 2: Scanner (Dashboard) - Dipindah ke BAWAH agar konsisten di mobile view */}
         {tutorialStep === 2 && view === 'dashboard' && (
-           <div className="fixed inset-0 z-[100] bg-black/60 pointer-events-none flex flex-col items-center justify-start pt-24 px-4">
+           <div className="fixed inset-0 z-[100] bg-black/60 pointer-events-none flex flex-col items-center justify-end pb-24 px-4">
               <div className="bg-white border-2 pointer-events-auto border-[#1A1A1A] shadow-[8px_8px_0px_#1A1A1A] p-6 max-w-sm w-full text-center">
                  <h3 className="text-xl font-serif italic mb-3">Scanning Food</h3>
                  <p className="text-sm opacity-80 mb-5 leading-relaxed">The large button below is your primary tool. It uses AI to scan food labels or text and cross-references them with your profile.</p>
