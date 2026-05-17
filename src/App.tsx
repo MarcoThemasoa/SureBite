@@ -2826,7 +2826,7 @@ export default function App() {
            <div className="fixed inset-0 z-[100] bg-black/60 pointer-events-none flex flex-col items-center justify-end pb-24 px-4">
               <div className="bg-white border-2 pointer-events-auto border-[#1A1A1A] shadow-[8px_8px_0px_#1A1A1A] p-6 max-w-sm w-full text-center">
                  <h3 className="text-xl font-serif italic mb-3">Scanning Food</h3>
-                 <p className="text-sm opacity-80 mb-5 leading-relaxed">The large button below is your primary tool. It uses AI to scan food labels or text and cross-references them with your profile.</p>
+                 <p className="text-sm opacity-80 mb-5 leading-relaxed">The large button above is your primary tool. It uses AI to scan food labels or text and cross-references them with your profile.</p>
                  <button onClick={() => { setTutorialStep(3); setView('scanner'); }} className="w-full py-3 bg-[#1A1A1A] text-white text-[10px] uppercase font-bold tracking-widest hover:bg-[#FF5F1F]">I Understand</button>
               </div>
            </div>
